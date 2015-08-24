@@ -1,0 +1,25 @@
+open Types
+
+(* ---------------------------------------------------------------- *)
+(*                      Utils Definition                           *)
+(* ---------------------------------------------------------------- *)
+
+
+let get_intervals i rel_l s =
+    List.map 
+        (fun (f,t,r) ->
+            r
+        )
+        (List.filter 
+            (fun (f,t,r) -> 
+                match s with
+                | To -> t == i
+                | From -> f == i
+            ) 
+            rel_l
+        )
+
+let process killable_p p s = 
+    do
+        run p
+    until s done

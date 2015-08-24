@@ -1,0 +1,37 @@
+(* ---------------------------------------------------------------- *)
+(*                      Clock Definition                            *)
+(* ---------------------------------------------------------------- *)
+
+(* 'emit_tic' represents the system clock
+
+   period : time (ms) elapsed between each tic.
+   tic : signal emitted each period.
+
+   notes : it is based on the Reactive Asco implementation.
+*)
+
+let process emit_tic period tic =
+    let start = Unix.gettimeofday () in
+    let next = ref (start +. period) in
+    loop
+        let current = Unix.gettimeofday() in
+        if (current >= !next) then begin
+            emit tic (); 
+            next := !next +. period
+        end;
+        pause
+    end
+
+(* ---------------------------------------------------------------- *)
+(*                      Delay Definition                            *)
+(* ---------------------------------------------------------------- *)
+
+(* 'wait' waits for an amount of time (tics) 
+    
+    tic : signal that represents the clock (tics) of the system.
+    dur : duration of the delay.
+*)
+
+let process wait tic dur = 
+  for i=1 to dur do await tic done
+  

@@ -1,0 +1,50 @@
+open RLO
+open Types
+
+(* OSC Client *)
+let process osc_client host client_port osc_messages =
+    let rlo_of_message_data x =
+        match x with
+            | String s -> RLO.String s
+            | Int32 s -> RLO.Int32 s
+            | Float s -> RLO.Float s
+            | Int64 s -> RLO.Int64 s
+            | Double s -> RLO.Double s
+            | Char s -> RLO.Char s
+            | _ -> RLO.String ("?")
+    in
+    let send addr (path,data) = 
+        try
+            RLO.send_message addr path data
+        with
+            |_ -> ()
+    in
+    let addr = RLO.address_create host client_port in
+    print_endline ("OSC Client on port: "^(string_of_int client_port));
+    loop
+        await osc_messages (message) in
+        List.iter (fun (p,d) -> send addr (p,List.map rlo_of_message_data d)) message
+    end
+
+
+
+(* OSC server *)
+let process osc_server server_port osc_messages =
+    let handler path data = 
+        let s = function
+            | RLO.String s -> String s
+            | RLO.Int32 s -> Int32 s
+            | RLO.Float s -> Float s
+            | RLO.Int64 s -> Int64 s
+            | RLO.Double s -> Double s
+            | RLO.Char s -> Char s
+            | _ -> String ("?")
+        in
+        let data_n = List.map s data in
+        Async.safe_emit osc_messages (path,data_n) 
+    in
+    let server = RLO.server_create server_port handler in
+    print_endline ("OSC Server on port : "^(string_of_int server_port));
+    loop
+      run (Async.proc_of_fun RLO.receive_message server)
+    end

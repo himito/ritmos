@@ -1,0 +1,180 @@
+open Types
+open Utils
+open Time
+open Osc
+
+(* ---------------------------------------------------------------- *)
+(*                      Player Definition                           *)
+(* ---------------------------------------------------------------- *)
+
+let make_player tic score input output events = 
+
+    (* run_intervals inter_l *)
+    let process run_intervals inter_l =
+        let process handle_duration d s =
+        match d with
+            | Finite f -> run (wait tic f); emit s
+            | Infinite -> loop pause end
+        in
+        run (Rml_list.par_iter
+                (proc i ->
+                    match i with 
+                        | Fixed (d,s) ->
+                            run (handle_duration d s)
+                        | Interactive (min,max,_) ->
+                            let (min_d,min_s) = min in
+                            let (max_d,max_s) = max in
+                            begin 
+                                run (handle_duration min_d min_s);
+                                do
+                                    run (handle_duration max_d max_s)
+                                until max_s done;
+                            end
+
+                )
+                inter_l
+            )
+    in
+
+    (* wait_intervals inter_l *)
+    let process wait_intervals inter_l id_box=
+        (* sync_minimum inter_l *)
+        let process sync_minimum inter_l =
+            run (Rml_list.par_iter
+                    (proc i ->
+                        match i with
+                            | Fixed (d,s) -> (* synchronization fixed intervals *)
+                                await immediate s
+                            | Interactive (min,_,_) -> 
+                                let (min_d,min_s) = min in
+                                await immediate min_s
+                    )
+                    inter_l
+                )
+        in 
+
+        let checkIP ip input =
+            List.exists (fun i -> ip = i) input
+        in
+
+        if (List.length inter_l > 0) then  (* if the box is not the scenario *)
+        begin 
+            run (sync_minimum inter_l); (* synchronization of minimum durations *)
+            match (List.hd inter_l) with 
+                | Fixed (_) ->  ()  (* There is not maximum durations *)
+                | Interactive (_,max,ip) -> (* Handling Interaction Point *)
+                    let (_,max_s) = max in
+                    begin
+                        print_endline ("start IP_Handling of Box "^(string_of_int id_box));
+                        emit events (IP_START id_box);
+                        do
+                            loop
+                                await input (ip_e) in (* only one event each time unit *)
+                                (if (checkIP ip ip_e) then emit max_s);
+                                pause 
+                            end
+                        until max_s done;
+                        print_endline ("End IP_Handling of Box "^(string_of_int id_box))
+                    end
+        end
+
+    in
+
+    let rec process run_generic box w_rels s_rels stop_f id_box =
+
+        let process run_boxes_par boxes relations stop =
+            run (Rml_list.par_iter
+                (proc b ->
+                    let ident =
+                    begin match b with
+                    | Hierarchical (i,_,_,_) -> i
+                    | Process (i,_,_,_) -> i
+                    end in
+                    (*let (id_b,_) = b in*)
+                    run (run_generic b (get_intervals ident relations To) (get_intervals ident relations From) stop ident)
+                )
+                boxes
+            )
+
+        in
+
+        let process run_p_box p_box =
+            let (ident, interval,star_m,end_m) = p_box in
+            print_endline ("Start Process ("^(string_of_int ident)^")"); 
+            do 
+                emit output (star_m);
+                (run (run_intervals [interval]) || run (wait_intervals [interval] ident)); 
+                emit output (end_m);
+            until stop_f -> emit output (end_m) done;
+            print_endline ("End Process ("^(string_of_int ident)^")"); 
+
+        in 
+
+        let process run_h_box h_box =    
+            let (ident, boxes, relations, interval) = h_box in
+            signal stop_box_h in
+            signal kill_m in
+            print_endline ("Start Hierarchical ("^(string_of_int ident)^")");            
+            (
+            (* wait for pre-emption *)
+            do (await immediate stop_f; (print_endline "father deleted"); emit stop_box_h) until kill_m done ||
+
+            (((do 
+                (* run duration signal *)
+                run (run_intervals [interval]) ||
+
+                (* wait duration of the box *)
+                (run (wait_intervals [interval] ident); 
+                    begin 
+                        match interval with 
+                        | Fixed _ -> () 
+                        | Interactive _ -> emit stop_box_h
+                    end
+                ) ||
+
+                (* run internal relations *)
+                run (run_intervals (get_intervals ident relations From)) ||
+
+                (* wait end -> synchronization *)
+                run (wait_intervals (get_intervals ident relations To) ident)
+
+            until stop_box_h done); emit stop_box_h; emit events (BOX_END id_box)) ||
+
+            (* run boxes *)
+            run (run_boxes_par boxes relations stop_box_h)); emit kill_m
+            );
+            print_endline ("End Hierarchical ("^(string_of_int ident)^")")
+
+        in
+
+        let process run_box box =
+            match box with 
+            | Hierarchical h -> run (run_h_box h) (* run hierarchical box *)
+            | Process p -> run (run_p_box p) (* run process *)
+
+        in
+
+        (* wait preceding intervals *)
+        run (killable_p (wait_intervals w_rels id_box) stop_f);
+
+        (* execute box *)
+        emit events (BOX_START id_box);
+        run (run_box box);
+        emit events (BOX_END id_box); 
+
+        (* send precendet intervals*)
+        run (killable_p (run_intervals s_rels) stop_f)
+
+    in
+
+    let process play score =
+        signal stop_scr in
+        match score with
+            | Hierarchical (id,_,_,_) ->
+                print_endline "start scenario";
+                run (run_generic score [] [] stop_scr id);
+                print_endline "End scenario"
+            | _ -> print_endline "The scenario must be a hierarchical box."
+    in
+
+    play score

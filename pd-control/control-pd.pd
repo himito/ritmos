@@ -1,0 +1,133 @@
+#N canvas 1008 119 1012 739 10;
+#X declare -lib oscx;
+#X text 431 14 Open Sound Control (OSC);
+#X obj 434 33 import oscx;
+#X obj 462 616 sendOSC;
+#X msg 613 553 connect localhost 8000;
+#X msg 615 580 disconnect;
+#X floatatom 446 653 5 0 0 0 - - -;
+#X floatatom 493 654 5 0 0 0 - - -;
+#X obj 381 507 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X msg 381 563 send /start \$1;
+#X msg 485 564 send /stop \$1;
+#X obj 484 505 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X obj 552 506 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X msg 381 535 3;
+#X msg 484 534 3;
+#X msg 552 536 4;
+#X obj 3 410 cnv 15 1000 50 empty empty Output_OSC_Message 20 12 0
+22 -232576 -66577 0;
+#X obj 613 525 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X text 599 506 connect;
+#X obj 3 68 cnv 15 1000 50 empty empty Input_OSC_Message 20 12 0 22
+-261682 -66577 0;
+#X obj 423 127 dumpOSC 7777;
+#X obj 423 159 OSCroute /box;
+#X msg 105 281 stop;
+#X obj 28 334 dac~;
+#X obj 27 307 readsf~ 2;
+#X msg 273 291 stop;
+#X obj 194 356 dac~;
+#X obj 192 318 readsf~ 2;
+#X msg 5 258 open ./samples/synth.wav \, 1;
+#X obj 59 281 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
+-1;
+#X obj 238 290 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X obj 423 188 route 1 2 4 5 6;
+#X msg 824 288 stop;
+#X obj 744 342 dac~;
+#X obj 743 315 readsf~ 2;
+#X obj 789 287 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X text 372 476 start box 3;
+#X text 462 476 stop box 3;
+#X text 545 476 stop box 4;
+#X msg 189 265 open ./samples/drum1.wav \, 1;
+#X msg 457 292 stop;
+#X obj 377 346 dac~;
+#X obj 376 319 readsf~ 2;
+#X obj 422 291 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X msg 373 266 open ./samples/synth2.wav \, 1;
+#X msg 740 262 open ./samples/drum1.wav \, 1;
+#X msg 642 290 stop;
+#X obj 562 344 dac~;
+#X obj 561 317 readsf~ 2;
+#X obj 607 289 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X msg 558 264 open ./samples/guitar.wav \, 1;
+#X obj 362 34 dsp;
+#X obj 361 16 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 1
+1;
+#X text 296 16 DSP Output;
+#X obj 29 231 route 1 0;
+#X obj 205 231 route 1 0;
+#X obj 364 232 route 1 0;
+#X obj 568 230 route 1 0;
+#X obj 756 228 route 1 0;
+#X connect 2 0 5 0;
+#X connect 2 1 6 0;
+#X connect 3 0 2 0;
+#X connect 4 0 2 0;
+#X connect 7 0 12 0;
+#X connect 8 0 2 0;
+#X connect 9 0 2 0;
+#X connect 10 0 13 0;
+#X connect 11 0 14 0;
+#X connect 12 0 8 0;
+#X connect 13 0 9 0;
+#X connect 14 0 9 0;
+#X connect 16 0 3 0;
+#X connect 19 0 20 0;
+#X connect 20 0 30 0;
+#X connect 21 0 23 0;
+#X connect 23 0 22 0;
+#X connect 23 1 22 1;
+#X connect 23 2 28 0;
+#X connect 24 0 26 0;
+#X connect 26 0 25 0;
+#X connect 26 1 25 1;
+#X connect 26 2 29 0;
+#X connect 27 0 23 0;
+#X connect 28 0 27 0;
+#X connect 29 0 38 0;
+#X connect 30 0 53 0;
+#X connect 30 1 54 0;
+#X connect 30 2 55 0;
+#X connect 30 3 56 0;
+#X connect 30 4 57 0;
+#X connect 31 0 33 0;
+#X connect 33 0 32 0;
+#X connect 33 1 32 1;
+#X connect 33 2 34 0;
+#X connect 34 0 44 0;
+#X connect 38 0 26 0;
+#X connect 39 0 41 0;
+#X connect 41 0 40 0;
+#X connect 41 1 40 1;
+#X connect 41 2 42 0;
+#X connect 42 0 43 0;
+#X connect 43 0 41 0;
+#X connect 44 0 33 0;
+#X connect 45 0 47 0;
+#X connect 47 0 46 0;
+#X connect 47 1 46 1;
+#X connect 47 2 48 0;
+#X connect 48 0 49 0;
+#X connect 49 0 47 0;
+#X connect 51 0 50 0;
+#X connect 53 0 27 0;
+#X connect 53 1 21 0;
+#X connect 54 0 38 0;
+#X connect 54 1 24 0;
+#X connect 55 0 43 0;
+#X connect 55 1 39 0;
+#X connect 56 0 49 0;
+#X connect 56 1 45 0;
+#X connect 57 0 44 0;
+#X connect 57 1 31 0;

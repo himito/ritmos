@@ -1,0 +1,204 @@
+open Osc
+open Types
+
+
+let gui_inscore clock score osc_messages events osc_server_host osc_server_port=
+
+    let scene_addr = "/ITL/scene" in
+    let line_addr = scene_addr^"/line" in
+    let box_addr = scene_addr^"/box" in
+    let counter_addr = scene_addr^"/counter" in
+    signal clock_gui default 0 gather fun x y -> x in
+    let n_box = List.length score in
+    let start_s = Array.init (n_box) (fun i -> signal s in s) in
+    let end_s = Array.init (n_box) (fun i -> signal s in s) in
+    let dx_s = Array.init (n_box) (fun i -> signal s default 0.0 gather fun x y -> x in s) in
+    let start_ip = Array.init (n_box) (fun i -> signal s in s) in
+
+    let max_dur_scenario = List.fold_left 
+                            (fun a b -> 
+                                let r = b.pos_x +. b.dur in 
+                                if r>= a then r else a
+                            ) 
+                            0.0 score in (* max. duration of scenario *)
+
+    let dx = (2.0 /. max_dur_scenario) in  (* dimension of each time unit *)
+
+    let send_to_inscore addr params = 
+        List.iter (fun p -> emit osc_messages (addr,p)) params
+    in
+
+    let reset =
+        send_to_inscore scene_addr [[String "reset"]]
+    in
+
+    let process observer =
+        loop
+            await events (l_events) in
+            List.iter 
+                (fun msg -> 
+                    match msg with 
+                    | BOX_START i -> emit start_s.(i)
+                    | BOX_END i -> emit end_s.(i)
+                    | IP_START i -> emit start_ip.(i)
+                ) 
+                l_events;
+            pause
+        end
+    in
+
+    (* counter *)
+    let process counter =
+        let elapsed = ref 1 in
+        let draw_counter =
+            let counter_parameters = [
+                [String "scale"; Int32 3];
+                [String "y"; Float (-0.9)];
+                [String "x"; Float 0.9];
+                [String "set"; String "txt"; Int32 0]
+            ] in
+            send_to_inscore counter_addr counter_parameters
+        in
+        draw_counter;
+        do
+            draw_counter;
+            loop
+                emit clock_gui !elapsed;
+                send_to_inscore counter_addr [[String "set"; String "txt"; Int32 !elapsed]];
+                elapsed := !elapsed + 1 ;
+                pause
+            end
+        when clock done
+    in
+
+    (* Line of current position *)
+    let process line =
+
+        (* draw the line *)
+        let draw_line  =
+            let line_parameters = [
+                [String "penWidth"; Float 2.0]; (* line width *)
+                [String "penColor"; Int32 0; Int32 0; Int32 0]; (* line color *)
+                [String "x"; Float (-1.0)];
+                [String "set"; String "line"; String "xy"; Float 0.0; Float 2.0]
+            ] in
+            send_to_inscore line_addr line_parameters
+        in
+
+        do
+            draw_line;
+            loop
+                send_to_inscore line_addr [[String "dx"; Float dx]];
+                pause
+            end
+        when clock done
+    in
+
+    (* draw box *)
+    let process run_boxes boxes =
+        let get_x px =
+            (px *. dx) -. 1.0
+        in
+        let draw_box b_id dur pos_x pos_y height ip_s ip_e =
+            let get_ip ip event =
+                let address_ip = (osc_server_host)^":"^(string_of_int osc_server_port) in
+                match ip with 
+                    | None -> []
+                    | Some (p,m) -> [
+                        (List.append 
+                        [String "watch"; String event; String (address_ip^p)] 
+                        m)]
+            in
+            let box_parameters = [
+                [String "penWidth"; Float 2.0]; (* border width *)
+                [String "color"; Int32 238; Int32 238; Int32 238];
+                [String "y"; Float (pos_y)];
+                [String "x"; Float (pos_x)];
+                [String "xorigin"; Float (-1.0)];
+                [String "set"; String "rect"; Float dur; Float height]
+            ] in
+            let result = (get_ip ip_s "mouseDown")@(get_ip ip_e "doubleClick")@box_parameters in 
+            send_to_inscore (box_addr^(string_of_int b_id)) result
+         in
+        let move_box b_id new_x =
+            send_to_inscore (box_addr^(string_of_int b_id)) [[String "dx"; Float new_x]]
+        in
+        let resize_box b_id new_y =
+            send_to_inscore (box_addr^(string_of_int b_id)) [[String "width"; Float new_y]]
+        in
+        let change_color b_id r g b =
+            send_to_inscore (box_addr^(string_of_int b_id)) [[String "color"; Int32 r; Int32 g; Int32 b];]
+        in
+        let change_border b_id value =
+            send_to_inscore (box_addr^(string_of_int b_id)) [[String "penStyle"; String value]]
+        in
+        let process box b =
+            let id_b = b.id in
+            let width = ref b.dur in
+            let height = b.height in
+            let pos_x = ref b.pos_x in
+            let pos_y = b.pos_y in
+            let children = b.children in
+            let (ip_start,ip_end) = b.ip in
+            let (r,g,b) = b.color in
+            draw_box id_b (!width *. dx) (get_x !pos_x) pos_y height ip_start ip_end;
+            (* waiting the start*)
+            do
+                loop
+                    await immediate clock;
+                    let current = float (last ?clock_gui) in
+                    if (!pos_x < current) then begin
+                        pos_x := !pos_x +. 1.0;
+                        List.iter
+                            (fun i -> move_box i dx; emit dx_s.(i) 1.0) 
+                            (id_b::children)
+                    end;
+                    pause
+                end || 
+                loop
+                    await dx_s.(id_b) (d) in
+                    pos_x := !pos_x +. d
+                end || (await immediate start_ip.(id_b); change_border id_b "dash")
+            until start_s.(id_b) done;
+            change_border id_b "solid";
+            (* box started *)
+            change_color id_b r g b ;
+            let current = float (last ?clock_gui) in
+            if (!pos_x > current) then begin
+                let new_x = current -. !pos_x  in
+                pos_x := current;
+                List.iter
+                    (fun i -> move_box i (new_x *. dx); emit dx_s.(i) new_x) 
+                    (id_b::children)
+            end;
+
+            (* box finished *)
+            do
+                loop
+                    await immediate clock;
+                    let current = float (last ?clock_gui) in
+                    if (current >= (!pos_x +. !width)) then begin
+                        width := !width +. 1.0;
+                        resize_box id_b (!width *. dx)
+                    end;
+                    pause
+                end || (await immediate start_ip.(id_b); change_border id_b "dot")
+            until end_s.(id_b) done;
+            change_color id_b 238 238 238 ;
+            let current = float (last ?clock_gui) in
+            let new_dy = (current -. !pos_x) in
+            width := if new_dy > 0.0 then new_dy else 0.0;
+            if (id_b <> 0) then  resize_box id_b (!width *. dx);
+            change_border id_b "solid";
+        in
+        run (Rml_list.par_iter box boxes)
+    in
+
+    let process run_gui =
+        reset;
+        (run counter || run (line) || run (run_boxes score)) || run observer
+
+    in
+
+    run_gui
+

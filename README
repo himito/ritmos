@@ -1,0 +1,17 @@
+- Dependencies :
+    * Ocaml 
+    * ReactiveML
+    * liblo
+    * Ocaml-lo
+    * INScore
+    * Pure Data
+
+- Installation:
+    * Install Homebrew (http://brew.sh/)
+    * brew install ocaml
+    * brew install liblo
+    * brew install opam
+    * opam install rml
+    * opam install lo
+    * Install INScore (http://inscore.sourceforge.net/)
+    * Install Pure Data (http://puredata.info/downloads/pd-extended)
