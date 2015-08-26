@@ -2,6 +2,8 @@
 (*                      Type Definition                             *)
 (* ---------------------------------------------------------------- *)
 
+(* ReactiveML signal *)
+type rml_signal = (unit, unit list) event
 
 (* OSC data *)
 type osc_data =
@@ -15,9 +17,6 @@ type osc_data =
 (* OSC message *)
 type osc_message = string * osc_data list (* path, argument list *)
 
-(* ReactiveML signal *)
-type rml_signal = (unit, unit list) event 
-
 (* graphical box *)
 type gui_box = {id: int; pos_x: float; pos_y: float; height: float; dur: float; children: int list; color: int*int*int; ip: osc_message option * osc_message option}
 
@@ -30,41 +29,35 @@ type msg_obs = IP_START of int | BOX_START of int | BOX_END of int
 (* source and target of intervals *)
 type dir_relation = To | From
 
-(* time -> tics *)
-type time = int
-
-type duration = Finite of time | Infinite
-
 (* box states *)
 type box_state = Idle | Started | Finished
 
 (* fixed interval *)
-type fix_interval = duration * rml_signal (* duration *)
+type rigid_interval = int * rml_signal (* duration *)
+
+type flexible_duration = Finite of rigid_interval | Infinite
 
 (* whole scenario *)
-type scenario = h_box
+type scenario = structure
 
 (* hierarchical box *)
-and h_box = int * box list * relation list * interval (* boxes, relations, duration *)
+and structure = int * temporal_object list * temporal_relation list * interval (* boxes, relations, duration *)
 
 (* temporal relations *)
-and relation = int * int * interval (* from, to, duration *)
+and temporal_relation = int * int * interval (* from, to, duration *)
 
 (* process box *)
-and p_box = int * interval * osc_message * osc_message (* duration, external process*)
+and texture = int * interval * osc_message * osc_message (* duration, external process*)
 
 (* temporal intervals *)
-and interval = 
-    | Fixed of fix_interval
-    | Interactive of interactive_interval
+and interval =
+    | Rigid of  rigid_interval
+    | Flexible of flexible_interval
 
 (* flexible interval *)
-and interactive_interval = fix_interval * fix_interval * interaction_p (* minimum, maximum, interaction point *)
-
-(* interaction point *)
-and interaction_p = osc_message (* message *)
+and flexible_interval = rigid_interval * flexible_duration * osc_message (* minimum, maximum, interaction point *)
 
 (* types of boxes *)
-and box = 
-    | Process of p_box
-    | Hierarchical of h_box
+and temporal_object =
+    | Texture of texture
+    | Structure of structure
