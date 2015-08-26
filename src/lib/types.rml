@@ -35,7 +35,7 @@ type box_state = Idle | Started | Finished
 (* fixed interval *)
 type rigid_interval = int * rml_signal (* duration *)
 
-type flexible_duration = Finite of rigid_interval | Infinite
+type flexible_duration = Finite of rigid_interval | Infinite of rml_signal
 
 (* whole scenario *)
 type scenario = structure
