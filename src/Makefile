@@ -1,6 +1,6 @@
 RMLC=rmlc
 
-RMLBUILD=RMLBUILD -classic-display
+RMLBUILD=rmlbuild -classic-display
 
 FLAGS=-Is applications,lib,modules \
 		-cflags "-I `$(RMLC) -where`/toplevel" \
@@ -11,7 +11,7 @@ FLAGS=-Is applications,lib,modules \
 TARGET=native
 
 all:	iscore.rml.$(TARGET)
-		
+
 
 iscore.rml.$(TARGET):
 		$(RMLBUILD) $(FLAGS) applications/$@
