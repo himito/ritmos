@@ -9,47 +9,44 @@ open Osc
 
 let make_player tic score input output events =
 
-    (* run_trelations inter_l *)
-    let process run_trelations inter_l =
-        let process run_rigid d s =
+    (* run_trelations trelations_l *)
+    let process run_trelations trelations_l =
+        let process run_rigid (d,s) =
           run (wait tic d); emit s
         in
-        let process handle_duration d =
-        match d with
-            | Finite (f,s) -> run (run_rigid f s)
-            | Infinite s -> do pause until s done
+        let process run_flexible dur =
+        match dur with
+            | Finite (d,s) -> run (killable_p (run_rigid (d,s)) s)
+            | Infinite s -> run (killable_p (process pause) s)
         in
         run (Rml_list.par_iter
                 (proc i ->
                     match i with
-                        | Rigid (d,s) ->
-                            run (run_rigid d s)
+                        | Rigid r -> run (run_rigid r)
                         | Flexible (min,max,_) ->
-                            let (min_d,min_s) = min in
                             begin
-                                run (run_rigid min_d min_s);
-                                run (handle_duration max);
+                                run (run_rigid min);
+                                run (run_flexible max);
                             end
 
                 )
-                inter_l
+                trelations_l
             )
     in
 
-    (* wait_trelations inter_l *)
-    let process wait_trelations inter_l id_tobject=
-        (* sync_minimum inter_l *)
-        let process sync_minimum inter_l =
+    (* wait_trelations trelations_l *)
+    let process wait_trelations trelations_l id_tobject=
+        (* sync_minimum trelations_l *)
+        let process sync_minimum trelations_l =
             run (Rml_list.par_iter
                     (proc i ->
                         match i with
-                            | Rigid (d,s) -> (* synchronization fixed intervals *)
-                                await immediate s
+                            | Rigid (d,s) -> await immediate s
                             | Flexible (min,_,_) ->
                                 let (min_d,min_s) = min in
                                 await immediate min_s
                     )
-                    inter_l
+                    trelations_l
                 )
         in
 
@@ -57,18 +54,18 @@ let make_player tic score input output events =
             List.exists (fun i -> ip = i) input
         in
 
-        if (List.length inter_l > 0) then  (* if the box is not the scenario *)
+        if (List.length trelations_l > 0) then  (* if the box is not the scenario *)
         begin
-            run (sync_minimum inter_l); (* synchronization of minimum durations *)
-            match (List.hd inter_l) with
-                | Rigid (_) ->  ()  (* There is not maximum durations *)
+            run (sync_minimum trelations_l); (* synchronization of minimum durations *)
+            match (List.hd trelations_l) with
+                | Rigid _ ->  ()  (* There is not maximum durations *)
                 | Flexible (_,max,ip) -> (* Handling Interaction Point *)
                   begin
-                        let max_s =
-                        begin match max with
-                            | Finite (d,s) -> s
-                            | Infinite s -> s
-                        end in
+                        let max_s = begin match max with
+                                      | Finite (d,s) -> s
+                                      | Infinite s -> s
+                                    end
+                        in
                         print_endline ("start IP_Handling of Box "^(string_of_int id_tobject));
                         emit events (IP_START id_tobject);
                         do
