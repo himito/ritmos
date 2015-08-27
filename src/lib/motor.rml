@@ -41,9 +41,9 @@ let make_player tic score input output events =
             run (Rml_list.par_iter
                     (proc i ->
                         match i with
-                            | Rigid (d,s) -> await immediate s
+                            | Rigid (_,s) -> await immediate s
                             | Flexible (min,_,_) ->
-                                let (min_d,min_s) = min in
+                                let (_,min_s) = min in
                                 await immediate min_s
                     )
                     trelations_l
@@ -62,7 +62,7 @@ let make_player tic score input output events =
                 | Flexible (_,max,ip) -> (* Handling Interaction Point *)
                   begin
                         let max_s = begin match max with
-                                      | Finite (d,s) -> s
+                                      | Finite (_,s) -> s
                                       | Infinite s -> s
                                     end
                         in
