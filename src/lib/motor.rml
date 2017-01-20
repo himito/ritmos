@@ -7,174 +7,168 @@ open Osc
 (*                      Player Definition                           *)
 (* ---------------------------------------------------------------- *)
 
-let make_player tic score input output events = 
+let make_player tic score input output events =
 
-    (* run_intervals inter_l *)
-    let process run_intervals inter_l =
-        let process handle_duration d s =
-        match d with
-            | Finite f -> run (wait tic f); emit s
-            | Infinite -> loop pause end
+    (* run_trelations trelations_l *)
+    let process run_trelations trelations_l =
+        let process run_rigid (d,s) =
+          run (wait tic d); emit s
+        in
+        let process run_flexible dur =
+        match dur with
+            | Finite (d,s) -> run (killable_p (run_rigid (d,s)) s)
+            | Infinite s -> run (killable_p (process pause) s)
         in
         run (Rml_list.par_iter
                 (proc i ->
-                    match i with 
-                        | Fixed (d,s) ->
-                            run (handle_duration d s)
-                        | Interactive (min,max,_) ->
-                            let (min_d,min_s) = min in
-                            let (max_d,max_s) = max in
-                            begin 
-                                run (handle_duration min_d min_s);
-                                do
-                                    run (handle_duration max_d max_s)
-                                until max_s done;
+                    match i with
+                        | Rigid r -> run (run_rigid r)
+                        | Flexible (min,max,_) ->
+                            begin
+                                run (run_rigid min);
+                                run (run_flexible max);
                             end
 
                 )
-                inter_l
+                trelations_l
             )
     in
 
-    (* wait_intervals inter_l *)
-    let process wait_intervals inter_l id_box=
-        (* sync_minimum inter_l *)
-        let process sync_minimum inter_l =
+    (* wait_trelations trelations_l *)
+    let process wait_trelations trelations_l id_tobject=
+        (* sync_minimum trelations_l *)
+        let process sync_minimum trelations_l =
             run (Rml_list.par_iter
                     (proc i ->
                         match i with
-                            | Fixed (d,s) -> (* synchronization fixed intervals *)
-                                await immediate s
-                            | Interactive (min,_,_) -> 
-                                let (min_d,min_s) = min in
+                            | Rigid (_,s) -> await immediate s
+                            | Flexible (min,_,_) ->
+                                let (_,min_s) = min in
                                 await immediate min_s
                     )
-                    inter_l
+                    trelations_l
                 )
-        in 
+        in
 
         let checkIP ip input =
             List.exists (fun i -> ip = i) input
         in
 
-        if (List.length inter_l > 0) then  (* if the box is not the scenario *)
-        begin 
-            run (sync_minimum inter_l); (* synchronization of minimum durations *)
-            match (List.hd inter_l) with 
-                | Fixed (_) ->  ()  (* There is not maximum durations *)
-                | Interactive (_,max,ip) -> (* Handling Interaction Point *)
-                    let (_,max_s) = max in
-                    begin
-                        print_endline ("start IP_Handling of Box "^(string_of_int id_box));
-                        emit events (IP_START id_box);
+        if (List.length trelations_l > 0) then  (* if the box is not the scenario *)
+        begin
+            run (sync_minimum trelations_l); (* synchronization of minimum durations *)
+            match (List.hd trelations_l) with
+                | Rigid _ ->  ()  (* There is not maximum durations *)
+                | Flexible (_,max,ip) -> (* Handling Interaction Point *)
+                  begin
+                        let max_s = begin match max with
+                                      | Finite (_,s) -> s
+                                      | Infinite s -> s
+                                    end
+                        in
+                        print_endline ("start IP_Handling of Box "^(string_of_int id_tobject));
+                        emit events (IP_START id_tobject);
                         do
                             loop
                                 await input (ip_e) in (* only one event each time unit *)
                                 (if (checkIP ip ip_e) then emit max_s);
-                                pause 
+                                pause
                             end
                         until max_s done;
-                        print_endline ("End IP_Handling of Box "^(string_of_int id_box))
+                        print_endline ("End IP_Handling of Box "^(string_of_int id_tobject))
                     end
         end
 
     in
 
-    let rec process run_generic box w_rels s_rels stop_f id_box =
+    let rec process run_generic_to tobject w_rels s_rels stop_s id_tobject =
 
-        let process run_boxes_par boxes relations stop =
+        let process run_tobjects_par tobjects relations stop =
             run (Rml_list.par_iter
                 (proc b ->
                     let ident =
-                    begin match b with
-                    | Hierarchical (i,_,_,_) -> i
-                    | Process (i,_,_,_) -> i
-                    end in
-                    (*let (id_b,_) = b in*)
-                    run (run_generic b (get_intervals ident relations To) (get_intervals ident relations From) stop ident)
+                      begin match b with
+                      | Structure (i,_,_,_) -> i
+                      | Texture (i,_,_,_) -> i
+                      end in
+                    run (run_generic_to b (get_trelations ident relations To) (get_trelations ident relations From) stop ident)
                 )
-                boxes
+                tobjects
             )
 
         in
 
-        let process run_p_box p_box =
-            let (ident, interval,star_m,end_m) = p_box in
-            print_endline ("Start Process ("^(string_of_int ident)^")"); 
-            do 
+        let process run_texture texture =
+            let (id_texture, duration, star_m, end_m) = texture in
+            print_endline ("Start Texture ("^(string_of_int id_texture)^")");
+            do
                 emit output (star_m);
-                (run (run_intervals [interval]) || run (wait_intervals [interval] ident)); 
+                (run (run_trelations [duration]) || run (wait_trelations [duration] id_texture));
                 emit output (end_m);
-            until stop_f -> emit output (end_m) done;
-            print_endline ("End Process ("^(string_of_int ident)^")"); 
+            until stop_s -> emit output (end_m) done;
+            print_endline ("End Texture ("^(string_of_int id_texture)^")");
 
-        in 
+        in
 
-        let process run_h_box h_box =    
-            let (ident, boxes, relations, interval) = h_box in
-            signal stop_box_h in
-            signal kill_m in
-            print_endline ("Start Hierarchical ("^(string_of_int ident)^")");            
-            (
-            (* wait for pre-emption *)
-            do (await immediate stop_f; (print_endline "father deleted"); emit stop_box_h) until kill_m done ||
-
-            (((do 
+        let process run_structure structure =
+            let (id_structure, tobjects, trs_children, duration) = structure in
+            signal stop_structure in
+            print_endline ("Start Structure ("^(string_of_int id_structure)^")");
+            ((do
                 (* run duration signal *)
-                run (run_intervals [interval]) ||
+                run (run_trelations [duration]) ||
 
                 (* wait duration of the box *)
-                (run (wait_intervals [interval] ident); 
-                    begin 
-                        match interval with 
-                        | Fixed _ -> () 
-                        | Interactive _ -> emit stop_box_h
+                (run (wait_trelations [duration] id_structure);
+                    begin
+                        match duration with
+                        | Rigid _ -> ()
+                        | Flexible _ -> emit stop_structure
                     end
                 ) ||
 
                 (* run internal relations *)
-                run (run_intervals (get_intervals ident relations From)) ||
+                run (run_trelations (get_trelations id_structure trs_children From)) ||
 
                 (* wait end -> synchronization *)
-                run (wait_intervals (get_intervals ident relations To) ident)
+                run (wait_trelations (get_trelations id_structure trs_children To) id_structure)
 
-            until stop_box_h done); emit stop_box_h; emit events (BOX_END id_box)) ||
+            until (stop_structure \/  stop_s) done; emit stop_structure; emit events (BOX_END id_tobject)) ||
 
             (* run boxes *)
-            run (run_boxes_par boxes relations stop_box_h)); emit kill_m
-            );
-            print_endline ("End Hierarchical ("^(string_of_int ident)^")")
+            run (run_tobjects_par tobjects trs_children stop_structure));
+            print_endline ("End Structure ("^(string_of_int id_structure)^")")
 
         in
 
-        let process run_box box =
-            match box with 
-            | Hierarchical h -> run (run_h_box h) (* run hierarchical box *)
-            | Process p -> run (run_p_box p) (* run process *)
+        let process run_tobject tobject =
+            match tobject with
+            | Structure h -> run (run_structure h) (* run Structure box *)
+            | Texture p -> run (run_texture p) (* run Texture *)
 
         in
 
         (* wait preceding intervals *)
-        run (killable_p (wait_intervals w_rels id_box) stop_f);
+        run (killable_p (wait_trelations w_rels id_tobject) stop_s);
 
         (* execute box *)
-        emit events (BOX_START id_box);
-        run (run_box box);
-        emit events (BOX_END id_box); 
+        emit events (BOX_START id_tobject);
+        run (run_tobject tobject);
+        emit events (BOX_END id_tobject);
 
         (* send precendet intervals*)
-        run (killable_p (run_intervals s_rels) stop_f)
+        run (killable_p (run_trelations s_rels) stop_s)
 
     in
 
     let process play score =
         signal stop_scr in
         match score with
-            | Hierarchical (id,_,_,_) ->
+            | Structure (id,_,_,_) ->
                 print_endline "start scenario";
-                run (run_generic score [] [] stop_scr id);
+                run (run_generic_to score [] [] stop_scr id);
                 print_endline "End scenario"
-            | _ -> print_endline "The scenario must be a hierarchical box."
+            | _ -> print_endline "The scenario must be a Structure box."
     in
 
     play score
