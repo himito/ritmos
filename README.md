@@ -7,10 +7,10 @@ real-time feedback of the execution using
 
 This tool was published in
 
-  Arias, J., Desainte-Catherine, M., Salvati, S., & Rueda, C. (2014). Executing
-  Hierarchical Interactive Scores in ReactiveML. In Journées d’Informatique
-  Musicale, JIM 2014, Bourges, France, May 21-23, 2014 (pp. 25–34). Available on
-  http://jim.afim-asso.org/jim2014/attachments/article/92/JIM2014_Actes_maquette_006.pdf
+    Arias, J., Desainte-Catherine, M., Salvati, S., & Rueda, C. (2014). Executing
+    Hierarchical Interactive Scores in ReactiveML. In Journées d’Informatique
+    Musicale, JIM 2014, Bourges, France, May 21-23, 2014 (pp. 25–34). Available on
+    http://jim.afim-asso.org/jim2014/attachments/article/92/JIM2014_Actes_maquette_006.pdf
 
 
 ## Dependencies
